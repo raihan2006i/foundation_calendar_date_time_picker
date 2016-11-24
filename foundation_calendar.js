@@ -158,7 +158,21 @@ $.fcdp = {
 			opts = $.extend({}, c_opts, opts);
 		} else {
 			opts = c_opts;
-		}		
+		}
+
+		if(opts.formats.time.search(/%H|%k/) >= 0){
+			opts.is24HourFormat = true;
+		}else if(opts.formats.time.search(/%I|%l|%-I/) >= 0){
+			opts.is24HourFormat = false;
+		}else {
+			opts.is24HourFormat = false;
+		}
+
+		if(opts.formats.time.search(/%S/) >= 0){
+			opts.showSecondsCtrl = true;
+		}else {
+			opts.showSecondsCtrl = false;
+		}
 		
 		if (opts.fixed) {
 			cal.addClass('fixed');
@@ -270,27 +284,33 @@ $.fcdp = {
 	
 	buildTime: function(opts) {
 		if (tp = opts.timePicker) {
-		
+
 			var header = $('<div class="header"></div>');
 			var time_label = $('<div class="time">Time</div>');
 			header.append(time_label);
-		
+
 			tp.append(header);
-		
+
 			var time = $('<div class="time"></div>');
-		
+
 			var ctlHour = $('<div class="value-control hour"><label>Hr</label><a class="value-change up"><span></span></a><input type="text" class="display" value="12" /><a class="value-change down"><span></span></a></div>');
 			var ctlMinute = $('<div class="value-control minute"><label>Min</label><a class="value-change up"><span></span></a><input type="text" class="display" value="00" /><a class="value-change down"><span></span></a></div>');
-			var ctlSecond = $('<div class="value-control second"><label>Sec</label><a class="value-change up"><span></span></a><input type="text" class="display" value="00" /><a class="value-change down"><span></span></a></div>');
-			var ctlAmPm = $('<div class="value-control ampm"><label>A/P</label><a class="value-change up"><span></span></a><input type="text" class="display" value="AM" /><a class="value-change down"><span></span></a></div>');
-		
+
 			time.append(ctlHour);
 			time.append(ctlMinute);
-			time.append(ctlSecond);
-			time.append(ctlAmPm);
-		
+
+			if(opts.showSecondsCtrl){
+				var ctlSecond = $('<div class="value-control second"><label>Sec</label><a class="value-change up"><span></span></a><input type="text" class="display" value="00" /><a class="value-change down"><span></span></a></div>');
+				time.append(ctlSecond);
+			}
+
+			if(!opts.is24HourFormat){
+				var ctlAmPm = $('<div class="value-control ampm"><label>A/P</label><a class="value-change up"><span></span></a><input type="text" class="display" value="AM" /><a class="value-change down"><span></span></a></div>');
+				time.append(ctlAmPm);
+			}
+
 			tp.append(time);
-		
+
 			this.wireupTime(opts);
 		}
 	},
@@ -298,16 +318,20 @@ $.fcdp = {
 	wireupTime: function(opts) {
 		if (tp = opts.timePicker) {
 			var hour = tp.find('.value-control.hour');
-			this.wireupTimeValueControl(hour, 1, 12, 1);
+			this.wireupTimeValueControl(hour, 1, opts.is24HourFormat ? 23 : 12, 1);
 
 			var minute = tp.find('.value-control.minute');
 			this.wireupTimeValueControl(minute, 0, 59, 2);
 
-			var second = tp.find('.value-control.second');
-			this.wireupTimeValueControl(second, 0, 59, 2);
-		
-			var ampm = tp.find('.value-control.ampm');
-			this.wireupTimeAmPmControl(ampm);
+			if(opts.showSecondsCtrl){
+				var second = tp.find('.value-control.second');
+				this.wireupTimeValueControl(second, 0, 59, 2);
+			}
+
+			if(!opts.is24HourFormat){
+				var ampm = tp.find('.value-control.ampm');
+				this.wireupTimeAmPmControl(ampm);
+			}
 		}
 	},
 	
@@ -403,7 +427,11 @@ $.fcdp = {
 			var fieldDate = this.getWorkingDate(opts);
 		
 			if (fieldDate) {
-				tp.find('.value-control.hour').find('input.display').val(fieldDate.format('%-I'));
+				if(opts.is24HourFormat){
+					tp.find('.value-control.hour').find('input.display').val(fieldDate.format('%H'));
+				}else{
+					tp.find('.value-control.hour').find('input.display').val(fieldDate.format('%-I'));
+				}
 				tp.find('.value-control.minute').find('input.display').val(fieldDate.format('%M'));
 				tp.find('.value-control.second').find('input.display').val(fieldDate.format('%S'));
 				tp.find('.value-control.ampm').find('input.display').val(fieldDate.format('%p'));
@@ -423,16 +451,17 @@ $.fcdp = {
 		
 			var second = parseInt(tp.find('.value-control.second').find('input.display').val());
 			second = second ? parseInt(second) : 0;
-		
-			var ampm = tp.find('.value-control.ampm').find('input.display').val();
 
+			if( !opts.is24HourFormat ){
+				var ampm = tp.find('.value-control.ampm').find('input.display').val();
 
-			hour = hour == 12 ? 0 : hour;
-			if (ampm.toLowerCase() === 'pm') {
-				hour += 12;
+				hour = hour == 12 ? 0 : hour;
+				if (ampm.toLowerCase() === 'pm') {
+					hour += 12;
+				}
+
+				hour %= 24;
 			}
-	
-			hour %= 24;
 
 			var wDate = this.getWorkingDate(opts);
 			var newDate = new Date(wDate.getFullYear(), wDate.getMonth(), wDate.getDate(), hour, minute, second);
